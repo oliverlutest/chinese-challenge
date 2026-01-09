@@ -248,8 +248,8 @@
         const total = correctCount + wrongCount;
         document.getElementById('stats-content').innerHTML = 
             `Session Progress: <b>${seenCount} / ${activeList.length}</b><br>` +
-            `Known this session: <b style="color:#27ae60">${correctCount}</b><br>` +
-            `Unsure this session: <b style="color:#e74c3c">${wrongCount}</b><br>` +
+            `Known (this session): <b style="color:#27ae60">${correctCount}</b><br>` +
+            `Unsure (this session): <b style="color:#e74c3c">${wrongCount}</b><br>` +
             `Total Unknowns (all time): <b>${mistakes.length}</b>`;
     }
 
@@ -288,4 +288,5 @@
     }
 </script>
 </body>
+
 </html>
