@@ -228,13 +228,18 @@
         }
     }
 
-    function showReport() {
+function showReport() {
         document.getElementById('game-ui').classList.add('hidden');
         document.getElementById('report-ui').classList.remove('hidden');
         const total = correctCount + wrongCount;
         const percent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+        
+        // This version includes the "Still Learning" line again
         document.getElementById('stats-content').innerHTML = 
-            `Total: <b>${total}</b><br>Correct: <b>${correctCount}</b><br>Accuracy: <b>${percent}%</b>`;
+            `Total Attempts: <b>${total}</b><br>` +
+            `Mastered: <b style="color:#27ae60">${correctCount}</b><br>` +
+            `Still Learning: <b style="color:#e74c3c">${wrongCount}</b><br>` +
+            `Accuracy: <b>${percent}%</b>`;
     }
 
     function continueSession() {
@@ -251,4 +256,5 @@
     }
 </script>
 </body>
+
 </html>
