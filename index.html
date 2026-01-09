@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Challenge</title>
+    <style>
+        /* This section MUST be present for the UI to look good */
+        body { 
+            font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; 
+            background-color: #e0f2fe; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        #app { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+            width: 360px; 
+            text-align: center; 
+            position: relative; 
+            z-index: 10; 
+            border: 4px solid #fff; 
+        }
+        .hidden { display: none; }
+        
+        #progress-container { width: 100%; height: 10px; background: #f0f0f0; border-radius: 10px; margin-top: 40px; overflow: hidden; border: 1px solid #ddd; }
+        #progress-bar { 
+            width: 0%; 
+            height: 100%; 
+            background: linear-gradient(to right, #87CEEB, #003366); 
+            transition: width 0.4s ease; 
+        }
+        
+        .completed-bar { box-shadow: 0 0 10px #003366; background: #003366 !important; }
+        #progress-text { font-size: 13px; color: #7f8c8d; margin-top: 8px; font-weight: bold; min-height: 1.2em; }
+        .completion-msg { color: #003366; font-size: 14px; display: block; animation: bounce 0.5s ease infinite alternate; }
+
+        @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.05); } }
+
+        .word-display { font-size: 80px; font-weight: bold; margin: 20px 0; color: #333; }
+        .pinyin { font-size: 26px; color: #E67E22; font-weight: bold; margin-bottom: 10px; }
+        .example { font-size: 18px; color: #444; background: #fff9c4; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: left; border-left: 5px solid #f1c40f; line-height: 1.4; }
+        
+        .btn { border: none; padding: 15px; border-radius: 50px; font-size: 18px; cursor: pointer; color: white; font-weight: bold; width: 100%; margin-top: 10px; box-shadow: 0 4px 0 rgba(0,0,0,0.1); transition: transform 0.1s; display: block; }
+        .btn:active { transform: translateY(2px); box-shadow: none; }
+        
+        .btn-green { background-color: #27ae60; }
+        .btn-red { background-color: #e74c3c; }
+        .btn-blue { background-color: #3498db; }
+        .btn-purple { background-color: #9b59b6; }
+        .btn-orange { background-color: #e67e22; }
+        
+        .btn-end { position: absolute; top: 12px; right: 12px; background: #eee; color: #666; font-size: 11px; width: auto; padding: 6px 12px; cursor: pointer; border-radius: 8px; font-weight: bold; box-shadow: none; }
+        .btn-toggle { position: absolute; top: 12px; left: 12px; background: #eee; color: #666; font-size: 11px; width: auto; padding: 6px 12px; cursor: pointer; border-radius: 8px; font-weight: bold; box-shadow: none; }
+        .toggle-on { color: #27ae60; }
+        .toggle-off { color: #e74c3c; }
+
+        .star { position: fixed; pointer-events: none; font-size: 24px; z-index: 100; animation: explode 0.6s ease-out forwards; }
+        @keyframes explode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x), var(--y)) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="setup-ui">
+        <h2 style="color: #2c3e50;">Welcome Back! 📚</h2>
+        <div id="load-status" style="color: #7f8c8d;">Loading word list...</div>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div id="effect-toggle" class="btn-toggle toggle-on" onclick="toggleEffects()">Effects: ON</div>
+        <div class="btn-end" onclick="showReport()">End Session</div>
+        <div id="progress-container"><div id="progress-bar"></div></div>
+        <div id="progress-text"></div>
+        <div id="word-box" class="word-display">...</div>
+        <div id="detail-box" class="hidden">
+            <div id="pinyin-text" class="pinyin"></div>
+            <div id="example-text" class="example"></div>
+            <button class="btn btn-blue" onclick="speak()">🔊 Pronounce</button>
+            <button class="btn btn-purple" onclick="nextWord()">Next Word →</button>
+        </div>
+        <div id="control-btns">
+            <button class="btn btn-green" onclick="handleAnswer(true)">I Know It</button>
+            <button class="btn btn-red" onclick="handleAnswer(false)">I Don't Know</button>
+        </div>
+    </div>
+
+    <div id="report-ui" class="hidden">
+        <h2 style="color: #2c3e50;">Session Report 🌟</h2>
+        <div id="stats-content" style="text-align: left; margin: 20px 0; font-size: 20px; line-height: 1.8; color: #34495e;"></div>
+        <button class="btn btn-green" onclick="continueSession()">Continue</button>
+        <button class="btn btn-orange" onclick="startNewSession()">New Session</button>
+        <button class="btn btn-blue" onclick="window.location.reload()">Refresh App</button>
+    </div>
+</div>
+
+<script>
+    var wordList = [];
+    var deck = [];
+    var seenCount = 0;
+    var currentItem = null;
+    var correctCount = 0;
+    var wrongCount = 0;
+    var audioCtx = null;
+    var effectsEnabled = true;
+
+    window.onload = function() {
+        // Fetch data from GitHub hosted JSON
+        fetch('./data.json')
+            .then(res => {
+                if(!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                wordList = data;
+                document.getElementById('setup-ui').classList.add('hidden');
+                document.getElementById('game-ui').classList.remove('hidden');
+                initAudio();
+                startFreshDeck();
+            })
+            .catch(() => {
+                document.getElementById('load-status').innerText = "Error: data.json not found in GitHub folder.";
+            });
+    };
+
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+    function toggleEffects() {
+        effectsEnabled = !effectsEnabled;
+        const btn = document.getElementById('effect-toggle');
+        btn.innerText = effectsEnabled ? "Effects: ON" : "Effects: OFF";
+        btn.className = effectsEnabled ? "btn-toggle toggle-on" : "btn-toggle toggle-off";
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function updateProgressBar() {
+        const total = wordList.length;
+        const percentage = (seenCount / total) * 100;
+        const bar = document.getElementById('progress-bar');
+        const text = document.getElementById('progress-text');
+        bar.style.width = percentage + "%";
+        if (seenCount >= total) {
+            bar.classList.add('completed-bar');
+            text.innerHTML = '<span class="completion-msg">🎉 Congratulations! List Finished!</span>';
+        } else {
+            bar.classList.remove('completed-bar');
+            text.innerText = seenCount + " / " + total + " Words Encountered";
+        }
+    }
+
+    function playSound(isSuccess) {
+        if (!audioCtx || !effectsEnabled) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(isSuccess ? 880 : 330, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function createStars() {
+        if (!effectsEnabled) return;
+        for (let i = 0; i < 12; i++) {
+            const star = document.createElement('div');
+            star.className = 'star'; star.innerText = '⭐';
+            star.style.left = '50%'; star.style.top = '50%';
+            const x = (Math.random() - 0.5) * 400 + 'px';
+            const y = (Math.random() - 0.5) * 400 + 'px';
+            star.style.setProperty('--x', x); star.style.setProperty('--y', y);
+            document.body.appendChild(star);
+            setTimeout(() => star.remove(), 600);
+        }
+    }
+
+    function speak() {
+        if (!currentItem) return;
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(currentItem.w + ". " + currentItem.e);
+        msg.lang = 'zh-CN';
+        msg.rate = 0.85;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startFreshDeck() {
+        deck = shuffle([...wordList]);
+        nextWord();
+    }
+
+    function nextWord() {
+        if (deck.length === 0) deck = shuffle([...wordList]);
+        currentItem = deck.pop();
+        if (seenCount < wordList.length) seenCount++;
+        updateProgressBar();
+        document.getElementById('word-box').innerText = currentItem.w;
+        document.getElementById('detail-box').classList.add('hidden');
+        document.getElementById('control-btns').classList.remove('hidden');
+    }
+
+    function handleAnswer(isCorrect) {
+        playSound(isCorrect);
+        if (isCorrect) {
+            correctCount++;
+            createStars();
+            setTimeout(nextWord, 400);
+        } else {
+            wrongCount++;
+            document.getElementById('pinyin-text').innerText = currentItem.p;
+            document.getElementById('example-text').innerText = currentItem.e;
+            document.getElementById('detail-box').classList.remove('hidden');
+            document.getElementById('control-btns').classList.add('hidden');
+        }
+    }
+
+    function showReport() {
+        document.getElementById('game-ui').classList.add('hidden');
+        document.getElementById('report-ui').classList.remove('hidden');
+        const total = correctCount + wrongCount;
+        const percent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+        document.getElementById('stats-content').innerHTML = 
+            `Total: <b>${total}</b><br>Correct: <b>${correctCount}</b><br>Accuracy: <b>${percent}%</b>`;
+    }
+
+    function continueSession() {
+        document.getElementById('report-ui').classList.add('hidden');
+        document.getElementById('game-ui').classList.remove('hidden');
+        nextWord();
+    }
+
+    function startNewSession() {
+        correctCount = 0; wrongCount = 0; seenCount = 0;
+        document.getElementById('report-ui').classList.add('hidden');
+        document.getElementById('game-ui').classList.remove('hidden');
+        startFreshDeck();
+    }
+</script>
+</body>
+</html>
