@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chinese Challenge - Auto-Load Version</title>
+    <style>
+        /* ... (Same CSS as before) ... */
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="setup-ui">
+        <h2 style="color: #2c3e50;">Loading Word List... 📚</h2>
+        <div id="load-status" style="color: #7f8c8d;">Connecting to GitHub...</div>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div id="effect-toggle" class="btn-toggle toggle-on" onclick="toggleEffects()">Effects: ON</div>
+        <div class="btn-end" onclick="showReport()">End Session</div>
+        <div id="progress-container"><div id="progress-bar"></div></div>
+        <div id="progress-text"></div>
+        <div id="word-box" class="word-display">...</div>
+        <div id="detail-box" class="hidden">
+            <div id="pinyin-text" class="pinyin"></div>
+            <div id="example-text" class="example"></div>
+            <button class="btn btn-blue" onclick="speak()">🔊 Pronounce</button>
+            <button class="btn btn-purple" onclick="nextWord()">Next Word →</button>
+        </div>
+        <div id="control-btns">
+            <button class="btn btn-green" onclick="handleAnswer(true)">I Know It</button>
+            <button class="btn btn-red" onclick="handleAnswer(false)">I Don't Know</button>
+        </div>
+    </div>
+
+    <div id="report-ui" class="hidden">
+        </div>
+</div>
+
+<script>
+    var wordList = [];
+    var deck = [];
+    var seenCount = 0;
+    var currentItem = null;
+    var correctCount = 0;
+    var wrongCount = 0;
+    var audioCtx = null;
+    var effectsEnabled = true;
+
+    // --- AUTO-LOAD LOGIC ---
+    window.onload = function() {
+        // This will look for 'data.json' in the same folder on GitHub
+        fetch('data.json')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                wordList = data;
+                if (wordList.length > 0) {
+                    document.getElementById('setup-ui').style.display = 'none';
+                    document.getElementById('game-ui').style.display = 'block';
+                    initAudio();
+                    startFreshDeck();
+                }
+            })
+            .catch(error => {
+                document.getElementById('load-status').innerHTML = "Error loading data.json. Make sure it is in the same folder!";
+                console.error('Error:', error);
+            });
+    };
+
+    // ... (Keep all other functions like shuffle, nextWord, speak, etc. from the previous code) ...
+</script>
+</body>
+</html>
